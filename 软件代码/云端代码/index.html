@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蓝脊灵豚 - 3D 呈现系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://s4.zstatic.net/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <link href="https://fonts.loli.net/css2?family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet"/>
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #0B1426 0%, #1E293B 50%, #0F172A 100%);
+            overflow: hidden;
+        }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(45, 212, 191, 0.2);
+        }
+        
+        .nav-logo {
+            background: linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(45, 212, 191, 0.3);
+        }
+        
+        .form-input {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(45, 212, 191, 0.3);
+            color: #E2E8F0;
+            transition: all 0.3s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #2DD4BF;
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
+        }
+        
+        .floating-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+        
+        .particle {
+            position: absolute;
+            background: rgba(45, 212, 191, 0.1);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        
+        .login-card {
+            z-index: 10;
+            position: relative;
+        }
+        
+        .wave-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg width='100' height='20' viewBox='0 0 100 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M21.184 20c.357-.13.72-.264 1.088-.402l1.768-.661C33.64 15.347 39.647 14 50 14c10.271 0 15.362 1.222 24.629 4.928.955.383 1.869.74 2.75 1.072h6.225c-2.51-.73-5.139-1.691-8.233-2.928C65.888 13.278 60.562 12 50 12c-10.626 0-16.855 1.397-26.66 5.063l-1.767.662c-2.475.923-4.66 1.674-6.724 2.275h6.335zm0-20C13.258 2.892 8.077 4 0 4V2c5.744 0 9.951-.574 14.85-2h6.334zM77.38 0C85.239 2.966 90.502 4 100 4V2c-6.842 0-11.386-.542-16.396-2h-6.225zM0 14c8.44 0 13.718-1.21 22.272-4.402l1.768-.661C33.64 5.347 39.647 4 50 4c10.271 0 15.362 1.222 24.629 4.928C84.112 12.722 89.438 14 100 14v-2c-10.271 0-15.362-1.222-24.629-4.928C65.888 3.278 60.562 2 50 2 39.374 2 33.145 3.397 23.34 7.063l-1.767.662C13.223 10.84 8.163 12 0 12v2z' fill='%232DD4BF' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+            opacity: 0.3;
+        }
+        
+        .database-info {
+            background: rgba(45, 212, 191, 0.1);
+            border: 1px solid rgba(45, 212, 191, 0.3);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-top: 16px;
+        }
+        
+        .database-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: #94A3B8;
+        }
+        
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10B981;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+    <base target="_blank">
+</head>
+<body>
+    <!-- 背景动画 -->
+    <div class="floating-particles">
+        <div class="particle" style="left: 10%; top: 20%; width: 4px; height: 4px; animation-delay: 0s;"></div>
+        <div class="particle" style="left: 20%; top: 80%; width: 6px; height: 6px; animation-delay: 1s;"></div>
+        <div class="particle" style="left: 60%; top: 30%; width: 3px; height: 3px; animation-delay: 2s;"></div>
+        <div class="particle" style="left: 80%; top: 70%; width: 5px; height: 5px; animation-delay: 3s;"></div>
+        <div class="particle" style="left: 30%; top: 60%; width: 4px; height: 4px; animation-delay: 4s;"></div>
+        <div class="particle" style="left: 70%; top: 10%; width: 7px; height: 7px; animation-delay: 5s;"></div>
+    </div>
+    
+    <!-- 波浪背景 -->
+    <div class="wave-bg"></div>
+    
+    <!-- 登录卡片 -->
+    <div class="min-h-screen flex items-center justify-center px-4">
+        <div class="login-card glass-panel rounded-2xl p-8 w-full max-w-md">
+            <!-- Logo -->
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 rounded-full bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path>
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-bold nav-logo mb-1">蓝脊灵豚</h1>
+                <p class="text-gray-400 text-xs">水下三维听诊机器人系统</p>
+            </div>
+            
+            <!-- 登录表单 -->
+            <form id="loginForm" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-medium text-gray-300 mb-1.5">用户名</label>
+                    <input type="text" id="username" class="form-input w-full px-3.5 py-2.5 rounded-lg text-sm" placeholder="请输入用户名" required>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-medium text-gray-300 mb-1.5">密码</label>
+                    <input type="password" id="password" class="form-input w-full px-3.5 py-2.5 rounded-lg text-sm" placeholder="请输入密码" required>
+                </div>
+                
+                <!-- 验证码 -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-300 mb-1.5">验证码</label>
+                    <div class="flex gap-2 items-center">
+                        <input type="text" id="captchaInput" class="form-input flex-1 px-3.5 py-2.5 rounded-lg text-sm" placeholder="输入验证码" maxlength="4" required autocomplete="off">
+                        <canvas id="captchaCanvas" class="h-[38px] rounded cursor-pointer border border-teal-500/30" width="100" height="36" title="点击刷新验证码"></canvas>
+                    </div>
+                    <div id="captchaStatus" class="text-[10px] text-gray-500 mt-1 h-4"></div>
+                </div>
+                
+                <button type="submit" id="loginBtn" class="btn-primary w-full py-2.5 rounded-lg text-white text-sm font-medium">
+                    登录系统
+                </button>
+            </form>
+            
+            <!-- 数据库连接信息 -->
+            <div class="database-info mt-5">
+                <div class="database-status">
+                    <div class="status-dot"></div>
+                    <span class="text-sm">数据库已连接</span>
+                </div>
+                <div class="text-xs text-gray-400 mt-2 leading-relaxed">
+                    <div>Host: 47.108.232.40:3306</div>
+                    <div>Database: qwe123</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 通知函数
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-24 right-6 z-50 px-4 py-3 rounded-lg text-white text-sm max-w-sm ${
+                type === 'success' ? 'bg-green-600' : 
+                type === 'error' ? 'bg-red-600' : 
+                'bg-blue-600'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            anime({
+                targets: notification,
+                translateX: [300, 0],
+                opacity: [0, 1],
+                duration: 300,
+                easing: 'easeOutQuad'
+            });
+            
+            setTimeout(() => {
+                anime({
+                    targets: notification,
+                    translateX: [0, 300],
+                    opacity: [1, 0],
+                    duration: 300,
+                    easing: 'easeInQuad',
+                    complete: () => {
+                        document.body.removeChild(notification);
+                    }
+                });
+            }, 3000);
+        }
+
+        let captchaToken = '';
+        let captchaCode = '';
+        
+        // 前端生成验证码
+        function generateLocalCaptcha() {
+            const canvas = document.getElementById('captchaCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // 背景
+            ctx.fillStyle = '#0B1426';
+            ctx.fillRect(0, 0, width, height);
+            
+            // 背景噪点
+            for (let i = 0; i < 120; i++) {
+                ctx.fillStyle = `rgba(${100 + Math.random() * 155}, ${200 + Math.random() * 55}, ${200 + Math.random() * 55}, ${0.15 + Math.random() * 0.35})`;
+                ctx.beginPath();
+                ctx.arc(Math.random() * width, Math.random() * height, Math.random() * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // 干扰线
+            for (let i = 0; i < 8; i++) {
+                ctx.strokeStyle = `rgba(${45 + Math.random() * 100}, ${150 + Math.random() * 100}, ${150 + Math.random() * 100}, ${0.15 + Math.random() * 0.25})`;
+                ctx.lineWidth = 0.5 + Math.random() * 1.5;
+                ctx.beginPath();
+                ctx.moveTo(Math.random() * width, Math.random() * height);
+                ctx.bezierCurveTo(
+                    Math.random() * width, Math.random() * height,
+                    Math.random() * width, Math.random() * height,
+                    Math.random() * width, Math.random() * height
+                );
+                ctx.stroke();
+            }
+            
+            // 背景波浪线
+            for (let i = 0; i < 3; i++) {
+                ctx.strokeStyle = `rgba(45, 212, 191, ${0.08 + Math.random() * 0.12})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                const startY = Math.random() * height;
+                for (let x = 0; x < width; x += 2) {
+                    const y = startY + Math.sin(x * 0.05 + i) * 5;
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            
+            // 生成随机字符
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+            captchaCode = '';
+            for (let i = 0; i < 4; i++) {
+                captchaCode += chars[Math.floor(Math.random() * chars.length)];
+            }
+            
+            // 绘制文字（随机颜色、大小、旋转、位置偏移）
+            const fontColors = ['#2DD4BF', '#22D3EE', '#5EEAD4', '#67E8F9', '#A5F3FC'];
+            for (let i = 0; i < captchaCode.length; i++) {
+                const x = 12 + i * 22 + (Math.random() - 0.5) * 6;
+                const y = height / 2 + (Math.random() - 0.5) * 10;
+                const fontSize = 18 + Math.random() * 6;
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate((Math.random() - 0.5) * 1.0); // 更大旋转角度
+                
+                // 随机字体
+                const fonts = ['bold', 'italic bold', 'bold'];
+                ctx.font = `${fonts[Math.floor(Math.random() * fonts.length)]} ${fontSize}px monospace`;
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = fontColors[Math.floor(Math.random() * fontColors.length)];
+                
+                // 添加文字阴影/描边增加辨识难度
+                ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                ctx.shadowBlur = 2;
+                ctx.fillText(captchaCode[i], 0, 0);
+                ctx.restore();
+            }
+            
+            // 前景噪点（覆盖在文字上的少量点）
+            for (let i = 0; i < 30; i++) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + Math.random() * 0.3})`;
+                ctx.fillRect(Math.random() * width, Math.random() * height, 1, 1);
+            }
+            
+            document.getElementById('captchaInput').value = '';
+        }
+        
+        // 尝试从后端加载验证码，失败则使用本地验证码
+        async function loadCaptcha() {
+            const statusEl = document.getElementById('captchaStatus');
+            statusEl.textContent = '';
+            
+            try {
+                const res = await fetch('/api/captcha');
+                if (!res.ok) throw new Error('后端验证码服务不可用');
+                const data = await res.json();
+                captchaToken = data.token;
+                
+                // 后端返回的是 SVG base64，绘制到 canvas 上
+                const canvas = document.getElementById('captchaCanvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.onload = function() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    captchaCode = data.code; // 记录后端验证码内容
+                };
+                img.onerror = function() {
+                    generateLocalCaptcha();
+                };
+                img.src = data.image;
+                
+                document.getElementById('captchaInput').value = '';
+            } catch (e) {
+                console.warn('后端验证码加载失败，使用本地验证码:', e);
+                captchaToken = 'local';
+                generateLocalCaptcha();
+            }
+        }
+        
+        document.getElementById('captchaCanvas').addEventListener('click', loadCaptcha);
+        
+        // 页面加载时获取验证码
+        loadCaptcha();
+        
+        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+            e.preventDefault(); // 阻止表单默认提交刷新页面
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const inputCaptcha = document.getElementById('captchaInput').value.trim();
+            const loginBtn = document.getElementById('loginBtn');
+
+            if (!username || !password) {
+                showNotification('请输入用户名和密码', 'error');
+                return;
+            }
+            
+            if (!inputCaptcha) {
+                showNotification('请输入验证码', 'error');
+                return;
+            }
+
+            // 禁用按钮防止重复点击
+            const originalText = loginBtn.textContent;
+            loginBtn.textContent = '验证中...';
+            loginBtn.disabled = true;
+            loginBtn.classList.add('opacity-75', 'cursor-not-allowed');
+
+            try {
+                console.log('正在连接后端验证用户...', username);
+                
+                let result;
+                
+                if (captchaToken === 'local') {
+                    // 本地验证码模式：先校验验证码，再调用用户列表接口
+                    if (inputCaptcha.toUpperCase() !== captchaCode.toUpperCase()) {
+                        throw new Error('验证码错误');
+                    }
+                    
+                    const res = await fetch('/api/users');
+                    if (!res.ok) throw new Error('服务器响应错误：' + res.status);
+                    const validUsers = await res.json();
+                    
+                    if (validUsers[username] && validUsers[username] === password) {
+                        result = { success: true, username, role: username === 'admin' ? 'admin' : 'operator' };
+                    } else {
+                        throw new Error('用户名或密码错误');
+                    }
+                } else {
+                    // 后端验证码模式
+                    const res = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password, captchaToken, captchaCode: inputCaptcha })
+                    });
+                    
+                    result = await res.json();
+                    
+                    if (!res.ok) {
+                        throw new Error(result.error || `服务器响应错误：${res.status}`);
+                    }
+                }
+
+                if (result.success) {
+                    console.log('登录成功:', username);
+                    
+                    // 保存用户信息
+                    sessionStorage.setItem('user', JSON.stringify({ 
+                        username: result.username, 
+                        role: result.role || 'operator',
+                        loginTime: new Date().toISOString()
+                    }));
+                    
+                    showNotification('登录成功，正在跳转...', 'success');
+                    
+                    // 延迟跳转让用户看到成功提示
+                    setTimeout(() => {
+                        window.location.href = 'main.html';
+                    }, 800);
+                } else {
+                    throw new Error(result.error || '登录失败');
+                }
+            } catch (error) {
+                console.error('登录过程出错:', error);
+                showNotification(`登录失败：${error.message}`, 'error');
+                
+                // 刷新验证码
+                loadCaptcha();
+                
+                // 恢复按钮状态
+                loginBtn.textContent = originalText;
+                loginBtn.disabled = false;
+                loginBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        });
+        
+        // 页面加载动画
+        anime({
+            targets: '.login-card',
+            opacity: [0, 1],
+            translateY: [30, 0], // 调整位移距离
+            duration: 600,       // 调整动画时长
+            easing: 'easeOutQuad',
+            delay: 100
+        });
+        
+        // 粒子动画
+        anime({
+            targets: '.particle',
+            scale: [0, 1],
+            opacity: [0, 0.6],
+            duration: 1000,
+            delay: anime.stagger(200),
+            easing: 'easeOutQuad'
+        });
+    </script>
+</body>
+</html>

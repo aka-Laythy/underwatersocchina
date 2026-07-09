@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蓝脊灵豚 - 3D呈现系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://s4.zstatic.net/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://s4.zstatic.net/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdmirror.com/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://s4.zstatic.net/ajax/libs/echarts/5.4.0/echarts.min.js"></script>
+    <link href="https://fonts.loli.net/css2?family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet"/>
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #0B1426 0%, #1E293B 50%, #0F172A 100%);
+            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(45, 212, 191, 0.2);
+        }
+        
+        .glass-panel-light {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(45, 212, 191, 0.15);
+        }
+        
+        .glow-border {
+            box-shadow: 0 0 20px rgba(45, 212, 191, 0.3);
+            border: 1px solid rgba(45, 212, 191, 0.3);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(45, 212, 191, 0.3);
+        }
+        
+        .btn-secondary {
+            background: rgba(45, 212, 191, 0.1);
+            border: 1px solid rgba(45, 212, 191, 0.3);
+            color: #2DD4BF;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(45, 212, 191, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        .task-item {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .task-item:hover {
+            background: rgba(45, 212, 191, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .task-item.active {
+            background: rgba(45, 212, 191, 0.2);
+            border-left: 3px solid #2DD4BF;
+        }
+        
+        .status-active {
+            color: #10B981;
+            background: rgba(16, 185, 129, 0.2);
+        }
+        
+        .status-completed {
+            color: #6B7280;
+            background: rgba(107, 114, 128, 0.2);
+        }
+        
+        .status-pending {
+            color: #F59E0B;
+            background: rgba(245, 158, 11, 0.2);
+        }
+        
+        .loading-overlay {
+            background: rgba(11, 20, 38, 0.9);
+            backdrop-filter: blur(5px);
+        }
+        
+        .spinner {
+            border: 3px solid rgba(45, 212, 191, 0.3);
+            border-top: 3px solid #2DD4BF;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #threejs-container {
+            background: radial-gradient(circle at center, rgba(15, 23, 42, 0.8) 0%, rgba(11, 20, 38, 0.95) 100%);
+        }
+        
+        .nav-logo {
+            background: linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .sensor-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(45, 212, 191, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .sensor-card:hover {
+            border-color: rgba(45, 212, 191, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .sensor-card.active {
+            border-color: #2DD4BF;
+            background: rgba(45, 212, 191, 0.1);
+        }
+        
+        .sensor-card.no-data {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .sensor-card.no-data:hover {
+            transform: none;
+            border-color: rgba(45, 212, 191, 0.2);
+        }
+        
+        .chart-container {
+            height: 280px;
+            position: relative;
+        }
+        
+        .visualization-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 23, 42, 0.9);
+            color: #2DD4BF;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .visualization-indicator.show {
+            opacity: 1;
+        }
+        
+        .no-data-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #64748B;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        
+        .data-range-legend {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(15, 23, 42, 0.8);
+    padding: 14px 18px;        
+    border-radius: 10px;        
+    font-size: 11px;
+    color: #94A3B8;
+    max-width: 280px;           
+    min-width: 220px;           
+    display: none;
+}
+        
+        .color-bar {
+    height: 14px;              
+    border-radius: 6px;         
+    margin: 12px 0;             
+    width: 100%;                
+}
+
+
+#legendMin, #legendMax {
+    display: inline-block;
+    min-width: 52px;            
+    text-align: center;
+    font-weight: 500;
+    color: #CBD5E1;             
+}
+
+
+.data-range-legend .flex.justify-between {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;                   
+}
+        
+        .database-info {
+            background: rgba(45, 212, 191, 0.1);
+            border: 1px solid rgba(45, 212, 191, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .database-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #94A3B8;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10B981;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* ==================== AI助手样式 ==================== */
+        
+        /* AI触发按钮 - 带文字引导 */
+        .ai-trigger-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 50;
+        }
+        
+        .ai-trigger-hint {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(45, 212, 191, 0.4);
+            border-radius: 8px;
+            padding: 8px 14px;
+            color: #2DD4BF;
+            font-size: 13px;
+            animation: hintPulse 2s ease-in-out infinite;
+            white-space: nowrap;
+        }
+        
+        @keyframes hintPulse {
+            0%, 100% { opacity: 0.8; box-shadow: 0 0 5px rgba(45, 212, 191, 0.3); }
+            50% { opacity: 1; box-shadow: 0 0 15px rgba(45, 212, 191, 0.6); }
+        }
+        
+        .ai-trigger-btn {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(45, 212, 191, 0.4), 0 0 0 4px rgba(45, 212, 191, 0.1);
+            transition: all 0.3s ease;
+            animation: aiPulse 2s ease-in-out infinite;
+        }
+
+        .ai-trigger-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px rgba(45, 212, 191, 0.5), 0 0 0 6px rgba(45, 212, 191, 0.15);
+        }
+
+        @keyframes aiPulse {
+            0%, 100% { box-shadow: 0 4px 20px rgba(45, 212, 191, 0.4), 0 0 0 4px rgba(45, 212, 191, 0.1); }
+            50% { box-shadow: 0 6px 30px rgba(45, 212, 191, 0.6), 0 0 0 8px rgba(45, 212, 191, 0.2); }
+        }
+
+        /* AI 模态窗口 - 遮罩模式 */
+.ai-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    
+    /* 灰黑色半透明背景 */
+    background: rgba(0, 0, 0, 0.6);     
+    backdrop-filter: blur(4px);          
+}
+
+        .ai-modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        .ai-modal {
+            width: 95%;
+            max-width: 1000px;
+            height: 88vh;
+            margin-left: -1%;
+            transform: scale(0.9) translateY(20px) translateX(-1%);
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(11, 20, 38, 0.99) 100%);
+            border: 1px solid rgba(45, 212, 191, 0.4);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.8), 0 0 60px rgba(45, 212, 191, 0.2);
+            transform: scale(0.9) translateY(20px);
+            transition: all 0.3s ease;
+        }
+
+        .ai-modal-overlay.active .ai-modal {
+            transform: scale(1) translateY(0) translateX(-1%);
+        }
+
+        .ai-modal-header {
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.15) 0%, rgba(8, 145, 178, 0.1) 100%);
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(45, 212, 191, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .ai-modal-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .ai-modal-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ai-modal-title-text {
+            color: #E2E8F0;
+        }
+
+        .ai-modal-title-text h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+            background: linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .ai-modal-title-text p {
+            font-size: 12px;
+            color: #94A3B8;
+            margin: 2px 0 0 0;
+        }
+
+        .ai-modal-close {
+            width: 36px;
+            height: 36px;
+            background: rgba(45, 212, 191, 0.1);
+            border: 1px solid rgba(45, 212, 191, 0.2);
+            border-radius: 10px;
+            color: #94A3B8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .ai-modal-close:hover {
+            background: rgba(45, 212, 191, 0.2);
+            color: #2DD4BF;
+            transform: rotate(90deg);
+        }
+
+        .ai-modal-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .ai-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .ai-message {
+            max-width: 85%;
+            padding: 14px 18px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.7;
+            word-wrap: break-word;
+            animation: messageAppear 0.3s ease;
+        }
+
+        @keyframes messageAppear {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .ai-message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .ai-message.assistant {
+            align-self: flex-start;
+            background: rgba(45, 212, 191, 0.08);
+            border: 1px solid rgba(45, 212, 191, 0.2);
+            color: #E2E8F0;
+            border-bottom-left-radius: 4px;
+        }
+
+        .ai-message.loading {
+            background: rgba(45, 212, 191, 0.05);
+            border: 1px dashed rgba(45, 212, 191, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #94A3B8;
+        }
+
+        .ai-prompts {
+            padding: 16px 24px;
+            border-top: 1px solid rgba(45, 212, 191, 0.1);
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        .ai-prompts-title {
+            font-size: 12px;
+            color: #64748B;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ai-prompts-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .ai-prompt-btn {
+            background: rgba(45, 212, 191, 0.1);
+            border: 1px solid rgba(45, 212, 191, 0.2);
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 13px;
+            color: #2DD4BF;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ai-prompt-btn:hover {
+            background: rgba(45, 212, 191, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.2);
+        }
+
+        .ai-input-area {
+            padding: 16px 24px 24px;
+            border-top: 1px solid rgba(45, 212, 191, 0.15);
+            display: flex;
+            gap: 12px;
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .ai-input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .ai-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(45, 212, 191, 0.25);
+            border-radius: 12px;
+            padding: 14px 18px;
+            color: #E2E8F0;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        .ai-input:focus {
+            border-color: #2DD4BF;
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1);
+        }
+
+        .ai-input::placeholder {
+            color: #64748B;
+        }
+
+        .ai-send-btn {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .ai-send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 212, 191, 0.4);
+        }
+
+        .ai-send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .ai-typing-indicator {
+            display: flex;
+            gap: 4px;
+        }
+
+        .ai-typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: #2DD4BF;
+            border-radius: 50%;
+            animation: typingBounce 1.4s ease-in-out infinite both;
+        }
+
+        .ai-typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .ai-typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typingBounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .ai-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .ai-messages::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+            border-radius: 3px;
+        }
+
+        .ai-messages::-webkit-scrollbar-thumb {
+            background: rgba(45, 212, 191, 0.3);
+            border-radius: 3px;
+        }
+
+        .ai-messages::-webkit-scrollbar-thumb:hover {
+            background: rgba(45, 212, 191, 0.5);
+        }
+
+        .ai-welcome {
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.1) 0%, rgba(8, 145, 178, 0.05) 100%);
+            border: 1px solid rgba(45, 212, 191, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 8px;
+        }
+
+        .ai-welcome h4 {
+            color: #2DD4BF;
+            font-size: 16px;
+            margin: 0 0 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ai-welcome ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #94A3B8;
+            font-size: 13px;
+            line-height: 2;
+        }
+
+        .ai-welcome li {
+            margin-bottom: 4px;
+        }
+
+        .ai-message pre {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            overflow-x: auto;
+            font-size: 12px;
+            margin: 8px 0;
+        }
+
+        .ai-message code {
+            background: rgba(45, 212, 191, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #2DD4BF;
+        }
+        
+        /* 切面滑块样式 */
+        #clipPositionSlider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #2DD4BF 0%, #14B8A6 100%);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(45, 212, 191, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        #clipPositionSlider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 3px 8px rgba(45, 212, 191, 0.6);
+        }
+
+        #clipPositionSlider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #2DD4BF 0%, #14B8A6 100%);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(45, 212, 191, 0.4);
+        }
+
+        /* 轨迹点弹窗样式 */
+        #traceTooltip {
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            transform-origin: top left;
+        }
+
+        #traceTooltip.hidden {
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.95);
+        }
+
+        #traceTooltip:not(.hidden) {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+
+        .clip-btn-active {
+            background: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%) !important;
+            color: white !important;
+            border-color: #2DD4BF !important;
+            box-shadow: 0 0 12px rgba(45, 212, 191, 0.4);
+        }
+        
+        /* AI 消息可读性优化 */
+.ai-message.assistant {
+    line-height: 1.9;
+    text-align: justify;
+    font-size: 14px;
+}
+
+.ai-message.assistant .data-highlight {
+    color: #2DD4BF;
+    font-weight: 600;
+    background: rgba(45, 212, 191, 0.12);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin: 0 2px;
+}
+
+.ai-message.assistant br + br {
+    margin-bottom: 8px;
+}
+
+.ai-message.assistant {
+    background: rgba(30, 41, 59, 0.5);
+    border-left: 3px solid #2DD4BF;
+    padding: 14px 18px;
+    border-radius: 6px;
+}
+
+/* 用户消息样式 */
+.ai-message.user {
+    line-height: 1.8;
+    background: rgba(45, 212, 191, 0.15);
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 8px 0;
+}
+
+/* ========== 滚动条优化 - 低调深色风格 ========== */
+
+/* 全局滚动条 */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.3);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(71, 85, 105, 0.5);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.7);
+}
+
+/* 任务列表面板 - 左边 */
+.task-list::-webkit-scrollbar,
+#taskList::-webkit-scrollbar {
+    width: 5px;
+}
+
+.task-list::-webkit-scrollbar-track,
+#taskList::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.3);
+    border-radius: 2px;
+}
+
+.task-list::-webkit-scrollbar-thumb,
+#taskList::-webkit-scrollbar-thumb {
+    background: rgba(71, 85, 105, 0.4);
+    border-radius: 2px;
+}
+
+.task-list::-webkit-scrollbar-thumb:hover,
+#taskList::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.6);
+}
+
+/* 任务详情面板 - 右边 */
+#taskDetails::-webkit-scrollbar {
+    width: 5px;
+}
+
+#taskDetails::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.3);
+    border-radius: 2px;
+}
+
+#taskDetails::-webkit-scrollbar-thumb {
+    background: rgba(71, 85, 105, 0.4);
+    border-radius: 2px;
+}
+
+#taskDetails::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.6);
+}
+        
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="glass-panel fixed top-0 left-0 right-0 z-50 px-6 py-3">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path>
+                    </svg>
+                </div>
+                <h1 class="text-xl font-bold nav-logo">蓝脊灵豚</h1>
+                <span class="text-gray-400 text-sm">3D呈现系统</span>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <div class="text-sm text-gray-300">
+                    当前用户: <span id="currentUser" class="text-teal-400 font-medium">demo</span>
+                </div>
+                <button id="logoutBtn" class="btn-secondary px-4 py-2 rounded-lg text-sm">
+                    退出登录
+                </button>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- 主容器 -->
+    <div class="flex h-screen pt-16">
+        <!-- 左侧面板 -->
+        <div class="glass-panel w-80 flex-shrink-0 overflow-hidden flex flex-col">
+            <!-- 数据库连接状态 -->
+            <div class="p-4 border-b border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-200 mb-4">数据库连接</h3>
+                
+                <div class="database-info">
+                    <div class="database-status">
+                        <div class="status-dot"></div>
+                        <span>已连接到数据库</span>
+                    </div>
+                    <div class="text-xs text-gray-400 mt-2">
+                        Host: 47.108.232.40:3306<br>
+                        Database: qwe123
+                    </div>
+                </div>
+                
+                <div class="space-y-3">
+                    <button id="connectDbBtn" class="btn-secondary w-full py-2 rounded-lg text-sm">
+                        查看数据库信息
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 湖泊列表 -->
+            <div class="flex-1 overflow-y-auto p-4">
+                <h3 class="text-lg font-semibold text-gray-200 mb-4">湖泊探测任务</h3>
+                <div id="taskList" class="space-y-2">
+                    <!-- 湖泊项通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- 中间区域 -->
+        <div class="flex-1 flex flex-col relative">
+            <!-- 3D场景容器 -->
+            <div id="threejs-container" class="flex-1 relative">
+                <!-- 轨迹点信息弹窗 -->
+                <div id="traceTooltip" class="absolute pointer-events-none z-50 hidden" style="max-width: 280px;">
+                    <div class="glass-panel rounded-lg p-3 shadow-2xl border border-teal-500/30">
+                        <h4 class="text-sm font-semibold text-teal-400 mb-2 flex items-center gap-1">
+                            <span>轨迹点信息</span>
+                        </h4>
+                        <div class="space-y-1.5 text-xs">
+                            <div class="flex justify-between items-center pb-1.5 border-b border-gray-700">
+                                <span class="text-gray-400">X 坐标:</span>
+                                <span id="tooltipX" class="text-gray-200 font-mono">0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center pb-1.5 border-b border-gray-700">
+                                <span class="text-gray-400">Y 坐标:</span>
+                                <span id="tooltipY" class="text-gray-200 font-mono">0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center pb-1.5 border-b border-gray-700">
+                                <span class="text-gray-400">Z 坐标:</span>
+                                <span id="tooltipZ" class="text-gray-200 font-mono">0.00</span>
+                            </div>
+                            
+                            <div class="pt-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400">深度:</span>
+                                    <span id="tooltipDepth" class="text-gray-200">--</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400">温度:</span>
+                                    <span id="tooltipTemp" class="text-gray-200">--</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400">溶解氧:</span>
+                                    <span id="tooltipDO" class="text-gray-200">--</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400">pH:</span>
+                                    <span id="tooltipPH" class="text-gray-200">--</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400">电导率:</span>
+                                    <span id="tooltipCond" class="text-gray-200">--</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400">浊度:</span>
+                                    <span id="tooltipTurb" class="text-gray-200">--</span>
+                                </div>
+                            </div>
+                            
+                            <div class="pt-1.5 border-t border-gray-700">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400">时间:</span>
+                                    <span id="tooltipTime" class="text-gray-200">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 当前视图信息 -->
+                <div class="absolute top-4 left-4 z-10">
+                    <div class="glass-panel-light rounded-lg p-3">
+                        <div class="text-xs text-gray-400 mb-1">当前视图</div>
+                        <div class="text-sm text-gray-200" id="currentView">等待数据加载</div>
+                    </div>
+                </div>
+                
+                <!-- 可视化模式指示器 -->
+                <div id="visualizationIndicator" class="visualization-indicator">
+                    深度分布模式
+                </div>
+                
+                <!-- 无数据提示 -->
+                <div id="noDataMessage" class="no-data-message">
+                    <div>正在连接数据库...</div>
+                    <div class="text-xs mt-2">请等待数据加载完成</div>
+                </div>
+                
+                <!-- 3D 控制面板 -->
+                <div class="absolute top-4 right-4 z-10 space-y-2 w-36">
+                    <button id="resetViewBtn" class="btn-secondary px-3 py-2 rounded-lg text-xs block w-full text-center">
+    重置视角
+</button>
+<button id="togglePointsBtn" class="btn-secondary px-3 py-2 rounded-lg text-xs block w-full text-center">
+    切换显示
+</button>
+<button id="centerModelBtn" class="btn-secondary px-3 py-2 rounded-lg text-xs block w-full text-center">
+    居中模型
+</button>
+                    
+                    <!-- 切面控制区域 -->
+                    <div class="mt-3 pt-3 border-t border-gray-700">
+                        <div class="text-xs text-gray-400 mb-2 flex items-center gap-1">
+                            <span>切面分析</span>
+                        </div>
+                        
+                        <!-- 切面方向按钮 -->
+                        <div class="grid grid-cols-3 gap-1 mb-2">
+                            <button id="clipXYBtn" class="bg-gray-800 hover:bg-teal-600 text-gray-300 hover:text-white 
+                                        text-xs py-1.5 px-2 rounded transition-colors border border-gray-700">
+                                XY
+                            </button>
+                            <button id="clipXZBtn" class="bg-gray-800 hover:bg-teal-600 text-gray-300 hover:text-white 
+                                        text-xs py-1.5 px-2 rounded transition-colors border border-gray-700">
+                                XZ
+                            </button>
+                            <button id="clipYZBtn" class="bg-gray-800 hover:bg-teal-600 text-gray-300 hover:text-white 
+                                        text-xs py-1.5 px-2 rounded transition-colors border border-gray-700 clip-btn-active">
+                                YZ
+                            </button>
+                        </div>
+                        
+                        <!-- 切面位置滑块 -->
+                        <div class="mb-2">
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>切面位置</span>
+                                <span id="clipPositionValue" class="text-teal-400">0.0</span>
+                            </div>
+                            <input type="range" id="clipPositionSlider" 
+                                   min="-100" max="100" value="0" step="0.5"
+                                   class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer 
+                                          accent-teal-400 hover:accent-teal-300">
+                        </div>
+                        
+                        <!-- 切面开关按钮 -->
+                        <button id="toggleClipBtn" class="w-full bg-gray-800 hover:bg-teal-600 text-gray-300 hover:text-white 
+                                    text-xs py-2 px-3 rounded transition-colors border border-gray-700 flex items-center justify-center gap-2">
+                            <span id="toggleClipText">启用切面</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 分隔线 -->
+                    <div class="h-px bg-gray-700 my-1"></div>
+                    
+                    <!-- 导出功能 -->
+                    <div class="mb-2">
+                        <div class="text-xs text-gray-300 mb-2 font-medium">📦 数据导出</div>
+                        <button id="exportShpBtn" class="btn-secondary w-full px-2 py-2 rounded text-xs text-center font-medium flex items-center justify-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            导出 Shapefile (.zip)
+                        </button>
+                        <div class="text-[10px] text-gray-500 mt-1 text-center">包含 .shp / .shx / .dbf / .prj</div>
+                    </div>
+                    
+                    <!-- 功能组 -->
+                    <div class="flex gap-2">
+                        <button id="debugBtn" class="btn-secondary flex-1 px-2 py-1.5 rounded text-xs text-center opacity-70 hover:opacity-100 transition">
+                            🔍 调试
+                        </button>
+                        
+                        <!-- 自动对比度按钮 -->
+                        <button id="autoContrastBtn" 
+                                class="btn-secondary flex-1 px-2 py-1.5 rounded text-[10px] text-center transition hover:bg-teal-900 hover:text-teal-400"
+                                title="点击切换自动对比度模式">
+                            ⚡ 自动对比度
+                            <!-- 状态小圆点 -->
+                            <span id="autoContrastIndicator" class="inline-block w-1.5 h-1.5 ml-1 rounded-full bg-gray-500"></span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 数据范围图例 -->
+                <div id="dataRangeLegend" class="data-range-legend">
+                    <div class="font-medium mb-2" id="legendTitle">深度分布</div>
+                    <div class="color-bar" id="legendColorBar"></div>
+                    <div class="flex justify-between text-xs">
+                        <span id="legendMin">45m</span>
+                        <span id="legendMax">120m</span>
+                    </div>
+                    <div class="text-xs mt-1 opacity-75" id="legendDescription"></div>
+                </div>
+                
+                <!-- 加载覆盖层 -->
+                <div id="loadingOverlay" class="loading-overlay absolute inset-0 flex items-center justify-center z-20 hidden">
+                    <div class="text-center">
+                        <div class="spinner mx-auto mb-4"></div>
+                        <div class="text-white text-sm" id="loadingText">正在加载数据...</div>
+                    </div>
+                </div>
+
+                <!-- AI触发按钮（带文字引导） -->
+                <div class="ai-trigger-container">
+                    <div class="ai-trigger-hint">AI生态助手</div>
+                    <button id="aiTriggerBtn" class="ai-trigger-btn" title="打开AI助手">
+                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧面板 -->
+        <div class="glass-panel w-96 flex-shrink-0 overflow-hidden flex flex-col">
+            
+            <!-- 传感器数据 -->
+            <div class="p-3 border-b border-gray-700 flex-shrink-0">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-base font-semibold text-gray-200">最新传感器数据</h3>
+                    <span class="text-[10px] text-gray-500" id="sensorCardHint">加载中...</span>
+                </div>
+                <!-- 动态传感器卡片容器 -->
+                <div id="sensorCardsContainer" class="grid grid-cols-3 gap-2">
+                    <!-- 卡片由 JS 动态生成 -->
+                </div>
+            </div>
+            
+            <!-- 时间分布图 -->
+            <div class="flex-1 flex flex-col min-h-0 relative">
+                <div class="flex items-center justify-between px-2 py-1 flex-shrink-0">
+                    <h3 class="text-sm font-semibold text-gray-200">时间分布图</h3>
+                    <div class="flex flex-wrap gap-1">
+                        <button id="btn-1h" onclick="app.setTimeRange('1h')" 
+                                class="time-range-btn text-xs px-1.5 py-0.5 rounded bg-teal-900 text-teal-400 hover:bg-teal-800 transition">1h</button>
+                        <button id="btn-6h" onclick="app.setTimeRange('6h')" 
+                                class="time-range-btn text-xs px-1.5 py-0.5 rounded bg-teal-900 text-teal-400 hover:bg-teal-800 transition">6h</button>
+                        <button id="btn-1d" onclick="app.setTimeRange('1d')" 
+                                class="time-range-btn text-xs px-1.5 py-0.5 rounded bg-teal-600 text-white">1d</button>
+                        <button id="btn-3d" onclick="app.setTimeRange('3d')" 
+                                class="time-range-btn text-xs px-1.5 py-0.5 rounded bg-teal-900 text-teal-400 hover:bg-teal-800 transition">3d</button>
+                        <button id="btn-7d" onclick="app.setTimeRange('7d')" 
+                                class="time-range-btn text-xs px-1.5 py-0.5 rounded bg-teal-900 text-teal-400 hover:bg-teal-800 transition">7d</button>
+                        <button id="btn-30d" onclick="app.setTimeRange('30d')" 
+                                class="time-range-btn text-xs px-1.5 py-0.5 rounded bg-teal-900 text-teal-400 hover:bg-teal-800 transition">30d</button>
+                        <button id="btn-all" onclick="app.setTimeRange('all')" 
+                                class="time-range-btn text-xs px-1.5 py-0.5 rounded bg-teal-900 text-teal-400 hover:bg-teal-800 transition">全部</button>
+                    </div>
+                </div>
+                
+                <div class="flex-1 relative min-h-0" id="timeChartWrapper">
+                    <div id="timeChart" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;"></div>
+                </div>
+            </div>
+            
+            <!-- 任务详情 -->
+            <div class="h-32 flex-shrink-0 border-t border-gray-700 overflow-hidden flex flex-col">
+                <h3 class="text-sm font-semibold text-gray-200 px-2 py-1">任务详情</h3>
+                <div id="taskDetails" class="flex-1 overflow-y-auto px-2 pb-2">
+                    <div class="text-xs text-gray-400 text-center py-4">
+                        请选择一个湖泊查看详情
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI模态窗口 -->
+    <div id="aiModalOverlay" class="ai-modal-overlay">
+        <div class="ai-modal">
+            <div class="ai-modal-header">
+                <div class="ai-modal-title">
+                    <div class="ai-modal-icon">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div class="ai-modal-title-text">
+                        <h3>生态保护AI助手</h3>
+                        <p>基于阿里云通义千问 • 实时连接数据库</p>
+                    </div>
+                </div>
+                <button id="aiModalClose" class="ai-modal-close">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="ai-modal-body">
+                <div class="ai-messages" id="aiMessages">
+                    <div class="ai-welcome">
+                        <h4>您好！我是您的生态保护智能助手</h4>
+                        <ul>
+                            <li><b>碳汇计算</b> — 湖泊碳储量评估与碳汇潜力分析</li>
+                            <li><b>水质诊断</b> — 基于实时传感器数据的生态健康评估</li>
+                            <li><b>生态修复</b> — 植被恢复、底泥治理等专业建议</li>
+                            <li><b>数据解读</b> — 点云地形分析与传感器趋势预测</li>
+                            <li><b>科研支持</b> — 湖泊生态系统研究方法与论文写作辅助</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="ai-prompts">
+                    <div class="ai-prompts-title">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        点击快速提问，或直接输入您的问题
+                    </div>
+                    <div class="ai-prompts-grid">
+                        <button class="ai-prompt-btn" onclick="app.askAI('计算当前湖泊的碳汇潜力')">
+                            碳汇潜力
+                        </button>
+                        <button class="ai-prompt-btn" onclick="app.askAI('分析当前水质状况并给出评估')">
+                            水质分析
+                        </button>
+                        <button class="ai-prompt-btn" onclick="app.askAI('根据数据给出生态修复建议')">
+                            修复建议
+                        </button>
+                        <button class="ai-prompt-btn" onclick="app.askAI('解读温度分布数据的生态意义')">
+                            温度解读
+                        </button>
+                        <button class="ai-prompt-btn" onclick="app.askAI('分析溶解氧变化趋势')">
+                            溶解氧趋势
+                        </button>
+                        <button class="ai-prompt-btn" onclick="app.askAI('评估 pH 值对生态系统的影响')">
+                            pH 评估
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ai-input-area">
+                    <div class="ai-input-wrapper">
+                        <input type="text" id="aiInput" class="ai-input" 
+                               placeholder="输入您的问题，例如：如何计算湖泊的蓝碳储量？" 
+                               maxlength="500">
+                    </div>
+                    <button id="aiSendBtn" class="ai-send-btn">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js?v=2"></script>
+
+</body></html>
